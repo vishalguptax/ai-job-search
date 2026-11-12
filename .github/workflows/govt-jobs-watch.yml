@@ -1,0 +1,76 @@
+# Weekly watch of official Indian government recruitment pages for IT posts.
+# Reports only - it never applies, registers, or pays anything.
+#
+# tools/govt_jobs_watch.py fetches each official careers page (robots.txt
+# enforced via tools/fetch_page.py), keeps links that look like IT recruitment
+# notices, drops contract / deputation / consultant / result-type links, and
+# writes a markdown lead list into a single rolling issue. Notices not seen in
+# the previous run are also posted as an issue comment, so GitHub emails you.
+# The seen-notice state lives in the issue body, so nothing is committed.
+#
+# The report holds public notice titles and URLs only - no candidate data.
+# Each lead still needs a human check of the notice: regular/permanent wording,
+# age limit on the cutoff date, selection method, last date.
+
+name: Govt jobs watch
+
+on:
+  schedule:
+    - cron: "30 3 * * 1" # 09:00 IST every Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    name: Scan official recruitment pages
+    # No-op on the upstream template itself.
+    if: github.repository != 'ai-job-search-dev/ai-job-search'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Read previous state from the rolling issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          title="Govt IT jobs watch"
+          num=$(gh issue list --state open --search "in:title \"$title\"" \
+            --json number,title --jq ".[] | select(.title==\"$title\") | .number" | head -n1)
+          echo "ISSUE_NUM=$num" >> "$GITHUB_ENV"
+          if [ -n "$num" ]; then gh issue view "$num" --json body --jq .body > prev.md; else : > prev.md; fi
+
+      - name: Scan official pages
+        run: |
+          {
+            echo "_Last checked: $(date -u '+%Y-%m-%d %H:%M UTC') · [run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})_"
+            echo
+            python tools/govt_jobs_watch.py --previous prev.md --new-out new.md
+          } > report.md
+          cat report.md
+
+      - name: Update the rolling issue and post new notices
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ -n "$ISSUE_NUM" ]; then
+            gh issue edit "$ISSUE_NUM" --body-file report.md
+          else
+            url=$(gh issue create --title "Govt IT jobs watch" --body-file report.md)
+            ISSUE_NUM="${url##*/}"
+          fi
+          if [ -s new.md ]; then
+            gh issue comment "$ISSUE_NUM" --body-file new.md
+          fi
