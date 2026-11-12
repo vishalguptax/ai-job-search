@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Weekly watch of official Indian government recruitment pages for IT posts.
+"""Daily watch of official Indian government recruitment pages for IT posts.
 
 Run by .github/workflows/govt-jobs-watch.yml. For each official careers page in
 SOURCES it fetches the page through tools/fetch_page.py (so robots.txt is

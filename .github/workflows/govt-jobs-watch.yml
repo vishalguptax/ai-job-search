@@ -1,4 +1,4 @@
-# Weekly watch of official Indian government recruitment pages for IT posts.
+# Daily watch of official Indian government recruitment pages for IT posts.
 # Reports only - it never applies, registers, or pays anything.
 #
 # tools/govt_jobs_watch.py fetches each official careers page (robots.txt
@@ -16,7 +16,7 @@ name: Govt jobs watch
 
 on:
   schedule:
-    - cron: "30 3 * * 1" # 09:00 IST every Monday
+    - cron: "30 3 * * *" # 09:00 IST daily
   workflow_dispatch:
 
 permissions:
